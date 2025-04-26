@@ -1,0 +1,13 @@
+# Environment and secrets
+.env
+.env.template
+resources/token_store.txt
+
+# Python
+venv/
+__pycache__/
+.pytest_cache/
+
+# Logs and OS files
+logs/
+.DS_Store
