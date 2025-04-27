@@ -1,8 +1,3 @@
----
-
-**`README.md` (Updated)**
-
-```markdown
 # Zoho CRM Python SDK v8 Implementation (Refactored)
 
 [![Python Version](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
@@ -65,7 +60,6 @@ src/
     test_init.py  # Example test for initialization
     # ... (Other test files would go here)
 venv/             # Python virtual environment (should be in .gitignore)
-
 ```
 
 ## Prerequisites
