@@ -3,7 +3,9 @@ from dotenv import load_dotenv
 from zohocrmsdk.src.com.zoho.crm.api.record import RecordOperations, BodyWrapper, Record, APIException, SuccessResponse, ActionWrapper, GetRecordParam
 from zohocrmsdk.src.com.zoho.crm.api import ParameterMap, HeaderMap
 
-from initialize_zcrmv8 import Initializer  # just to ensure init has run
+# Ensure SDK is initialized using the new core module
+# This import triggers the code in src/core/initialize.py
+from src.core import initialize 
 
 _REQ_FIELDS = ["Last_Name", "Company", "Lead_Status"]
 MODULE = "Leads"

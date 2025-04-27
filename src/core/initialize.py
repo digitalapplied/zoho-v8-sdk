@@ -9,6 +9,24 @@ from zohocrmsdk.src.com.zoho.api.authenticator import OAuthToken
 from zohocrmsdk.src.com.zoho.api.authenticator.store import FileStore
 from zohocrmsdk.src.com.zoho.api.logger import Logger
 
+# Dynamically find the project root (d:\zoho_v8)
+PROJECT_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent 
+
+DATA_DIR = PROJECT_ROOT / "data"
+LOGS_DIR = PROJECT_ROOT / "logs"
+TOKEN_DIR = DATA_DIR / "tokens"
+# Directory where SDK will create its 'resources' folder
+API_RESOURCES_DIR = DATA_DIR / "api_resources" 
+
+# Ensure directories exist
+DATA_DIR.mkdir(exist_ok=True)
+LOGS_DIR.mkdir(exist_ok=True)
+TOKEN_DIR.mkdir(exist_ok=True)
+API_RESOURCES_DIR.mkdir(exist_ok=True)
+
+token_file = TOKEN_DIR / "token_store.txt"
+log_file = LOGS_DIR / "sdk.log"
+
 _DC_MAP = {
     "com": USDataCenter.PRODUCTION(),
     "eu": EUDataCenter.PRODUCTION(),
@@ -31,14 +49,12 @@ if not Initializer.get_initializer():
         refresh_token=os.getenv("REFRESH_TOKEN"),
         redirect_url="http://localhost"
     )
-    resources = pathlib.Path("resources").resolve()
-    resources.mkdir(exist_ok=True)
 
     Initializer.initialize(
         environment=env,
         token=token,
-        store=FileStore("resources/token_store.txt"),
+        store=FileStore(str(token_file)),
         sdk_config=SDKConfig(auto_refresh_fields=True),
-        resource_path=str(resources),
-        logger=Logger.get_instance(Logger.Levels.INFO, "logs/sdk.log"),
+        resource_path=str(API_RESOURCES_DIR),
+        logger=Logger.get_instance(Logger.Levels.INFO, str(log_file)),
     )

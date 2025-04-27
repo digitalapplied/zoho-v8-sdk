@@ -1,7 +1,10 @@
 # Environment and secrets
 .env
 .env.template
-resources/token_store.txt
+# New path for token store
+data/tokens/token_store.txt
+# Ignore generated SDK resources
+data/api_resources/
 
 # Python
 venv/
@@ -9,5 +12,6 @@ __pycache__/
 .pytest_cache/
 
 # Logs and OS files
+# Ensure logs directory is ignored
 logs/
 .DS_Store

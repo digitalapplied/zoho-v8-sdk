@@ -1,33 +1,29 @@
 # Zoho CRM Python SDK v8 Implementation Checklist
 
 ## Project Setup Progress
-- [x] Create project directory structure (`src`, `logs`, `resources`)
+- [x] Create project directory structure (`src/core`, `src/api`, `src/tests`, `data`, `logs`)
 - [x] Create `.env.template` file with required environment variables
-- [x] Create SDK initializer (`src/initialize_zcrmv8.py`)
-- [x] Create Lead update example (`src/update_lead.py`)
+- [x] Create SDK initializer (`src/core/initialize.py`)
+- [x] Create Lead update example (`src/api/leads.py`)
+- [x] Create test script (`src/tests/test_init.py`)
 - [x] Create virtual environment and install dependencies
 - [x] Complete OAuth flow to obtain required tokens
 - [x] Configure environment variables in `.env` file
-- [x] Test SDK initialization
-- [x] Test Lead update functionality
+- [x] Test SDK initialization (`python -m src.tests.test_init`)
+- [x] Test Lead update functionality (`python -m src.api.leads`)
+- [x] Update `README.md` with new structure and instructions
+- [x] Update `.gitignore` with new data paths
 
 ## SDK Requirements
 - [x] Python 3.9 or later installed
-- [x] SDK package installed: `zohocrmsdk8_0==2.0.0`
+- [x] SDK package installed: `zohocrmsdk` (ensure latest)
 - [x] OAuth Self Client created in [Zoho API Console](https://api-console.zoho.com)
-- [x] Required scopes granted: `ZohoCRM.modules.ALL,ZohoCRM.settings.ALL,ZohoCRM.users.READ,ZohoCRM.org.READ`
+- [x] Required scopes granted: `ZohoCRM.modules.ALL,ZohoCRM.settings.ALL,ZohoCRM.users.READ,ZohoCRM.org.READ` (Verify based on actual needs)
 - [x] Refresh token obtained and configured
 
 ## Documentation
-- [x] Guide document available
-- [x] Troubleshooting notes compiled (available in the guide)
-
-## Next Steps
-1. ✅ Created and activated virtual environment
-2. ✅ Installed dependencies: `zohocrmsdk8_0==2.0.0` and `python-dotenv`
-3. ✅ OAuth flow completed with tokens obtained
-4. ✅ Configured `.env` file with actual credentials
-5. ✅ Tested SDK initialization successfully
-6. ✅ Tested Lead update functionality with actual Lead ID
+- [x] README updated (`README.md`)
+- [x] Checklist updated (`CHECKLIST.md`)
+- [ ] Original guide document available (`zoho_v8_guide.md`) - *Note: This guide may be outdated due to restructuring.*
 
 Last updated: 2025-04-26
