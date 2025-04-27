@@ -19,4 +19,10 @@ logs/
 # Ignore lead qualification output files
 src/lead_qualification_cv_results.txt
 src/lead_qualification_results.txt
-src/output/lead_qualification_results.txt
+
+# Ignore all files in the output directory at project root
+output/
+
+# Ignore Zoho SDK token store and API metadata
+zoho_data/tokens/token_store.txt
+zoho_data/api_resources/resources/
