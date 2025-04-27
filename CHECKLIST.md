@@ -14,6 +14,18 @@
 - [x] Update `README.md` with new structure and instructions
 - [x] Update `.gitignore` with new data paths
 
+## Lead Qualification Feature
+- [x] Implement fetching multiple Leads using `get_records`
+- [x] Implement pagination handling (`ParameterMap`, `GetRecordsParam.page`, `Info.get_more_records`)
+- [x] Add specific field selection using `GetRecordsParam.fields`
+- [x] Implement client-side filtering (by `Lead_Status == 'Not Contacted'`)
+- [x] Implement extraction of specific Lead fields (`id`, names, email, notes)
+- [x] Add `qualify_uncontacted_leads` function to `src/api/leads.py`
+- [x] Update main execution block in `src/api/leads.py` to run qualification by default
+- [x] Add detailed logging for the qualification process
+- [x] Update README.md usage instructions for qualification and optional update
+- [x] Update zoho_v8_guide.md with explanation of `get_records`, pagination, and filtering
+
 ## SDK Requirements
 - [x] Python 3.9 or later installed
 - [x] SDK package installed: `zohocrmsdk` (ensure latest)
@@ -24,6 +36,6 @@
 ## Documentation
 - [x] README updated (`README.md`)
 - [x] Checklist updated (`CHECKLIST.md`)
-- [ ] Original guide document available (`zoho_v8_guide.md`) - *Note: This guide may be outdated due to restructuring.*
+- [x] Original guide document available (`zoho_v8_guide.md`) with Phase 7 (Lead Qualification) added
 
-Last updated: 2025-04-26
+Last updated: 2025-04-27

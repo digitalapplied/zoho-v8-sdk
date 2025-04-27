@@ -15,6 +15,7 @@ This implementation provides a reliable foundation for integrating Python applic
 *   **Automatic Token Management:** Leverages the SDK's `FileStore` to automatically handle Access Token generation and renewal, storing tokens securely in the `data/tokens/` directory.
 *   **Dynamic Data Center Detection:** Automatically configures the correct API endpoint based on the `ACCOUNTS_URL` provided in the `.env` file (e.g., .com, .eu, .com.au).
 *   **Mandatory Field Workaround:** Includes a safe update pattern (`src/api/leads.py`) that fetches and re-includes potentially required fields to prevent common `MANDATORY_NOT_FOUND` errors.
+*   **Lead Qualification:** Fetches leads based on criteria (e.g., 'Not Contacted') and extracts specific fields for analysis using pagination.
 *   **Clear Configuration:** Centralized configuration via a `.env` file.
 *   **Structured Logging:** Configured logging to `logs/sdk.log` for easier debugging.
 *   **Standard SDK:** Uses the official `zohocrmsdk` package.
@@ -137,37 +138,48 @@ This implementation requires a one-time manual process to get a Refresh Token.
 
 ## Usage
 
-Ensure your virtual environment is activated and you are in the project root directory before running commands.
+Ensure your virtual environment is activated and you are in the project root directory (`d:\zoho_v8` or similar) before running commands.
 
-*   **Run Lead Update Example:**
-    This script initializes the SDK (if needed) and attempts to update the 'Mobile' field for the `LEAD_ID` specified in your `.env` file, using the mandatory field workaround.
+*   **Run Lead Qualification Example (Default):**
+    This script initializes the SDK (if needed) and fetches all leads with the status "Not Contacted", displaying their Name, Email, and Additional Relocation Notes. It handles pagination automatically.
 
     ```bash
-    (venv) python -m src.api.leads
+    # On Windows using Command Prompt or PowerShell (assuming venv is activated)
+    python -m src.api.leads
     ```
-    Check the console output and verify the change in Zoho CRM. Logs are available in `logs/sdk.log`.
+    Check the console output for fetching progress and final results. Detailed logs are available in `logs/sdk.log`.
+
+*   **Run Lead Update Example (Optional):**
+    To run the single lead update example:
+    1.  Ensure `LEAD_ID` (must be a valid ID > 0) and `NEW_MOBILE` are set correctly in your `.env` file.
+    2.  Modify the `if __name__ == "__main__":` block in `src/api/leads.py`: comment out the call to `qualify_uncontacted_leads()` and uncomment the block that calls `update_single_lead_mobile()`.
+    3.  Run the script:
+        ```bash
+        python -m src.api.leads
+        ```
 
 *   **Run Initialization Test:**
-    This script verifies that the SDK initializes correctly based on your `.env` configuration.
+    This script verifies that the SDK initializes correctly based on your `.env` configuration and token store.
 
     ```bash
-    (venv) python -m src.tests.test_init
+    python -m src.tests.test_init
     ```
 
 ## Key Implementation Details
 
 *   **Automatic Initialization:** The SDK is initialized automatically when modules like `src.api.leads` or `src.tests.test_init` import from `src.core` (specifically `src.core.initialize`). The `Initializer.initialize()` call only runs once per application lifecycle.
 *   **Authentication Flow:** Uses `OAuthToken` configured with the `refresh_token` and `FileStore`. The SDK handles refreshing the access token automatically when it expires.
-*   **Mandatory Field Workaround:** The `src.api.leads.py` script demonstrates fetching required fields (`_REQ_FIELDS`) before performing an update. This is often necessary to satisfy Zoho CRM's validation rules, which might require system-mandatory fields or fields involved in layout rules to be present in the update payload, even if they aren't being changed.
+*   **Mandatory Field Workaround:** The `src/api/leads.py` script demonstrates fetching required fields (`_REQ_FIELDS`) before performing an update. This is often necessary to satisfy Zoho CRM's validation rules, which might require system-mandatory fields or fields involved in layout rules to be present in the update payload, even if they aren't being changed.
 *   **Data Directory:** The `data/` directory stores persistent SDK information (`tokens/token_store.txt` and `api_resources/resources/`). Ensure the application has write permissions here. This directory should typically be excluded from version control.
 
 ## Troubleshooting
 
 *   **Initialization Errors:** Check `logs/sdk.log` for details. Common causes include incorrect credentials in `.env`, wrong `ACCOUNTS_URL`, network issues, or file permission problems in the `data/` or `logs/` directories.
 *   **`INVALID_TOKEN` / `OAUTH_SCOPE_MISMATCH`:** Usually means the Refresh Token is invalid or was generated without the necessary scopes (see Phase 1, Step 2 in the guide). Regenerate the Grant/Refresh tokens with all required scopes.
-*   **`MANDATORY_NOT_FOUND`:** Ensure the update script (`src.api.leads.py`) fetches and includes all potentially required fields (defined in `_REQ_FIELDS`). You might need to add more fields to this list depending on your specific CRM setup and layout rules.
+*   **`MANDATORY_NOT_FOUND`:** Ensure the update script (`src/api/leads.py`) fetches and includes all potentially required fields (defined in `_UPDATE_REQ_FIELDS`). You might need to add more fields to this list depending on your specific CRM setup and layout rules.
 *   **Import Errors (`ModuleNotFoundError`):** Make sure the virtual environment is active and you are running scripts from the **project root directory** using the `python -m src.package.module` syntax.
 *   **Attribute Errors on Response (`NoneType` object):** Often indicates the API call failed before returning a valid response object. Check `logs/sdk.log` for underlying SDK errors related to authentication, request formation, or permissions. Ensure `USER_EMAIL` in `.env` is valid and active.
+*   **No 'Not Contacted' Leads Found:** If the qualification script runs but finds 0 leads, double-check the exact string value used for "Not Contacted" status in your Zoho CRM instance (it's case-sensitive) and compare it with the `target_status` variable inside the `qualify_uncontacted_leads` function in `src/api/leads.py`. Also verify that such leads actually exist in your CRM.
 
 Refer to the **`zoho_v8_guide.md`** (Rev. 4) for more detailed setup and troubleshooting steps.
 

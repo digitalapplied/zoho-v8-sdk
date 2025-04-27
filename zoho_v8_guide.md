@@ -405,3 +405,44 @@ This guide details the reliable, step-by-step method to initialize and use the `
 *   **Check Logs:** `logs/sdk.log` is your primary source for detailed SDK errors if console output is insufficient.
 
 ---
+
+## Phase 7: Fetching and Filtering Multiple Records (Lead Qualification Example)
+
+This phase demonstrates how to retrieve multiple records from a module, handle pagination, and perform client-side filtering using the `src/api/leads.py` script.
+
+**Objective:** Fetch all "Leads" records where the `Lead_Status` field is exactly "Not Contacted" and display specific fields (`id`, `First_Name`, `Last_Name`, `Email`, `Additional_Relocation_Notes`) for review.
+
+**Key Concepts Implemented in `qualify_uncontacted_leads()`:**
+
+1.  **`RecordOperations.get_records()`:** This method is used to retrieve multiple records from the specified module (`Leads`).
+2.  **`ParameterMap` & `GetRecordsParam`:**
+    *   A `ParameterMap` instance holds the query parameters for the `get_records` call.
+    *   `GetRecordsParam.fields`: Used to specify a comma-separated string of API names for the fields to retrieve (e.g., `"First_Name,Last_Name,Email,Lead_Status,Additional_Relocation_Notes"`). This minimizes data transfer.
+    *   `GetRecordsParam.per_page`: Sets the maximum number of records to retrieve per API call (e.g., `200`).
+    *   `GetRecordsParam.page`: Specifies which page number to retrieve (starts at 1). This is updated inside the pagination loop.
+3.  **Pagination Loop:**
+    *   A `while more_records:` loop continues as long as the API indicates more data might be available.
+    *   Inside the loop, `get_records` is called for the current `page`.
+    *   The response (`response.get_object()`) is checked. It should contain a `BodyWrapper` object on success (HTTP 200).
+    *   The `BodyWrapper` contains `get_data()` (a list of `Record` objects) and `get_info()` (an `Info` object).
+    *   The `info.get_more_records()` method returns `True` if the API indicates more pages are available, controlling the loop's continuation.
+    *   The `page` counter is incremented for the next iteration if `more_records` is `True`.
+    *   The loop also handles HTTP 204 (No Content), which signals the end of records.
+4.  **Client-Side Filtering:**
+    *   After fetching a page of records, the code iterates through each `record` in the `records` list.
+    *   It retrieves the value of the `Lead_Status` field using `record.get_key_value("Lead_Status")`.
+    *   An `if status == target_status:` check filters the records based on the desired status ("Not Contacted").
+    *   Only records matching the criteria are processed further and added to the `all_qualifying_leads` list.
+5.  **Data Extraction:** For qualifying records, relevant fields (`id`, names, email, notes) are extracted using `record.get_key_value()` or `record.get_id()`.
+6.  **Error Handling:** `try...except` blocks handle `APIException` and general `Exception` possibilities during API calls and data processing, logging errors appropriately.
+7.  **Logging:** Uses the configured `logger` for detailed info, debug, warning, and error messages, which are written to `logs/sdk.log`.
+
+**Running the Example:**
+
+Execute `python -m src.api.leads` from the project root. The script will print progress and the final list of qualifying leads to the console.
+
+**Note on Filtering Efficiency:** While client-side filtering works well for moderate amounts of data, it involves fetching all records (within the pagination limits) and then discarding those that don't match in your Python code. For very large datasets where you only need a small subset, this can be inefficient in terms of API calls and data transfer.
+
+A more efficient approach for large-scale filtering is **server-side filtering** using **COQL (CRM Object Query Language)**. The SDK provides `ZohoCRMSDK.Operations.execute_coql_query()` method for this purpose. Constructing a COQL query like `SELECT id, First_Name, Last_Name, Email, Additional_Relocation_Notes FROM Leads WHERE Lead_Status = 'Not Contacted'` would instruct the Zoho CRM server to *only* return the records that match the `WHERE` clause, significantly reducing the data transferred and potentially the number of API calls needed.
+
+---

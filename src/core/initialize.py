@@ -1,5 +1,7 @@
 from __future__ import annotations
-import os, pathlib
+import os
+import pathlib
+import logging
 from dotenv import load_dotenv
 
 from zohocrmsdk.src.com.zoho.crm.api.initializer import Initializer
@@ -26,6 +28,17 @@ API_RESOURCES_DIR.mkdir(exist_ok=True)
 
 token_file = TOKEN_DIR / "token_store.txt"
 log_file = LOGS_DIR / "sdk.log"
+
+# Configure Python's standard logging module for use in other modules
+logging.basicConfig(
+    filename=str(log_file),
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+# Create a logger that can be imported by other modules
+logger = logging.getLogger('zoho_sdk')
 
 _DC_MAP = {
     "com": USDataCenter.PRODUCTION(),
