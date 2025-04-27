@@ -1,13 +1,13 @@
 # src/api/leads/__init__.py
 
 from .update import update_single_lead_mobile
-from .qualify import qualify_uncontacted_leads
+from .qualify import qualify_leads_from_custom_view
 from .common import (
     MODULE, TARGET_LEAD_ID_FOR_UPDATE, NEW_MOBILE_FOR_UPDATE,
-    UPDATE_REQ_FIELDS, QUALIFY_FIELDS, logger
+    UPDATE_REQ_FIELDS, QUALIFY_FIELDS, logger, QUALIFICATION_CUSTOM_VIEW_ID
 )
 
-# Import the SDK initialization to ensure it's available
+# Import the SDK initialization to ensure it's available when this package is imported
 from src.core import initialize
 
 def main():
@@ -43,12 +43,12 @@ def main():
                 # Use the first argument as the target status
                 target_status = sys.argv[1]
                 print(f"\nRunning Lead Qualification with custom status: '{target_status}'...")
-                qualify_uncontacted_leads(target_status)
+                qualify_leads_from_custom_view(target_status)
                 print("\nLead Qualification finished.")
         else:
             # Default: Run the qualification function with default status
             print("\nRunning Lead Qualification with default status...")
-            qualify_uncontacted_leads()
+            qualify_leads_from_custom_view()
             print("\nLead Qualification finished.")
 
     else:

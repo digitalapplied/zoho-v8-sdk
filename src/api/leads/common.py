@@ -48,6 +48,17 @@ except Exception as e:
     TARGET_LEAD_ID_FOR_UPDATE = 0
     NEW_MOBILE_FOR_UPDATE = ""
 
+# Variable for the qualification example
+try:
+    # Add default empty string if not found
+    QUALIFICATION_CUSTOM_VIEW_ID = os.getenv("QUALIFICATION_CUSTOM_VIEW_ID", "")
+    if not QUALIFICATION_CUSTOM_VIEW_ID:
+         logger.warning("QUALIFICATION_CUSTOM_VIEW_ID not set in .env. Qualification by CV might require explicit ID.")
+except Exception as e:
+    logger.error(f"Error loading QUALIFICATION_CUSTOM_VIEW_ID from .env: {e}")
+    QUALIFICATION_CUSTOM_VIEW_ID = ""
+
+# --- Helper Functions ---
 
 def extract_field_value(record, field_name):
     """
