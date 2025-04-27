@@ -15,3 +15,7 @@ __pycache__/
 # Ensure logs directory is ignored
 logs/
 .DS_Store
+
+# Ignore lead qualification output files
+src/lead_qualification_cv_results.txt
+src/lead_qualification_results.txt
