@@ -1,8 +1,10 @@
-# Definitive Guide: Setting Up and Using Zoho CRM Python SDK (`zohocrmsdk`) - Rev. 4 (Refactored)
+---
 
-This guide details the reliable, step-by-step method to initialize and use the `zohocrmsdk` Python package for Zoho CRM API v8. This process reflects a refactored project structure for better maintainability and incorporates the final, successful approach using the **Refresh Token** for initialization and the **workaround for potential `MANDATORY_NOT_FOUND` errors** during updates.
+# Definitive Guide: Setting Up and Using Zoho CRM Python SDK (`zohocrmsdk`) - Rev. 5 (Refactored CLI)
 
-**Target SDK:** `zohocrmsdk` (Latest stable version supporting API v8, e.g., v5.0.0 or higher)
+This guide details the reliable, step-by-step method to initialize and use the `zohocrmsdk` Python package for Zoho CRM API v8. This process reflects a refactored project structure (using `src/cli.py` as the entry point) and incorporates best practices like **Refresh Token** authentication, `FileStore`, dynamic DC detection, `Field` class usage, and robust error handling.
+
+**Target SDK:** `zohocrmsdk` (Latest stable version supporting API v8)
 **Target API:** Zoho CRM API v8
 
 ### Prerequisites
@@ -60,33 +62,24 @@ This guide details the reliable, step-by-step method to initialize and use the `
     *   From the JSON output, **copy the `"refresh_token"` value**. This token is long-lived (until revoked) and is the key to persistent authentication. Store it securely alongside your Client ID and Secret.
 
 4.  **Create and Populate `.env` File:**
-    *   In your project root directory (e.g., `d:\zoho_v8`), create a file named `.env`. You can copy `.env.template` if provided.
-    *   Paste the following structure, replacing placeholders with your credentials (including the **Refresh Token** obtained in Step 3):
+    *   In your project root directory (e.g., `D:\zoho_v8`), create a file named `.env`.
+    *   Paste the following structure, replacing placeholders with your credentials and default configuration:
         ```dotenv
         # .env file for Zoho CRM SDK Configuration
 
-        # Credentials from the Self Client app (Zoho API Console)
+        # === Zoho Credentials (Required) ===
         CLIENT_ID=YOUR_CLIENT_ID_HERE
         CLIENT_SECRET=YOUR_CLIENT_SECRET_HERE
-
-        # REFRESH TOKEN obtained via manual Grant Token exchange (Step 3)
         REFRESH_TOKEN=YOUR_REFRESH_TOKEN_HERE_FROM_STEP_3
-
-        # Your Zoho CRM user email (MUST be an active, confirmed user in the CRM instance)
-        # Used internally by SDK for some operations or if UserSignature is explicitly needed.
         USER_EMAIL=your_zoho_login_email@example.com
-
-        # Your Zoho Accounts URL (Determines the Data Center automatically)
-        # Examples: https://accounts.zoho.com, https://accounts.zoho.eu, https://accounts.zoho.com.au
         ACCOUNTS_URL=https://accounts.zoho.com
 
-        # --- Variables for the lead update example (src/api/leads.py) ---
-        # Replace with a valid Lead ID from your Zoho CRM instance
-        LEAD_ID=YOUR_LEAD_ID_HERE
-        # Replace with the desired new mobile number for the test
-        NEW_MOBILE=YOUR_NEW_MOBILE_NUMBER_HERE
+        # === Default Values for CLI Commands (Optional) ===
+        LEAD_ID=YOUR_DEFAULT_LEAD_ID_HERE
+        NEW_MOBILE=YOUR_DEFAULT_MOBILE_HERE
+        QUALIFICATION_CUSTOM_VIEW_ID=YOUR_DEFAULT_CUSTOM_VIEW_ID_HERE
         ```
-    *   Save the `.env` file in the project root. Ensure this file is added to your `.gitignore` to prevent committing sensitive credentials.
+    *   Save the `.env` file in the project root. Ensure this file is added to your `.gitignore`.
 
 ---
 
@@ -95,354 +88,226 @@ This guide details the reliable, step-by-step method to initialize and use the `
 5.  **Project Structure:**
     Your project should follow this structure for proper module resolution and organization:
     ```
-    d:\zoho_v8\
-    ├── .env                # Your environment variables (Created in Phase 1)
-    ├── .env.template       # Template for environment variables (Optional)
-    ├── .gitignore          # Git ignore configuration
-    ├── README.md           # Project description
-    ├── CHECKLIST.md        # Project checklist (Optional)
-    ├── zoho_v8_guide.md    # This guide
-    ├── src/                # Source code package root
-    │   ├── api/            # Modules for interacting with specific CRM APIs
+    D:\zoho_v8\      # Project Root
+    ├── .env
+    ├── .gitignore
+    ├── README.md
+    ├── CHECKLIST.md
+    ├── zoho_v8_guide.md
+    ├── requirements.txt # Recommended
+    ├── zoho_data/       # Data/Resource files (add to .gitignore)
+    │   ├── api_resources/
+    │   │   └── resources/ # SDK metadata cache
+    │   └── tokens/
+    │       └── token_store.txt # OAuth tokens
+    ├── logs/            # Log files (add to .gitignore)
+    │   ├── app.log      # Application logs
+    │   └── sdk.log      # SDK internal logs
+    ├── output/          # Output files (add to .gitignore)
+    │   └── *.txt
+    ├── src/             # Source code package root
+    │   ├── __init__.py
+    │   ├── cli.py       # Main CLI Entry Point
+    │   ├── core/
     │   │   ├── __init__.py
-    │   │   └── leads.py    # Example: Lead operations logic
-    │   ├── core/           # Core setup, configuration, utilities
+    │   │   └── initialize.py # SDK Initialization & Logging Setup
+    │   ├── api/
     │   │   ├── __init__.py
-    │   │   └── initialize.py # SDK initialization logic
-    │   ├── tests/          # Unit/Integration tests
-    │   │   ├── __init__.py
-    │   │   └── test_init.py # Example: Initialization tests
-    │   └── __init__.py     # Makes 'src' a package
-    ├── data/               # Data storage (should be in .gitignore)
-    │   ├── tokens/         # For storing the SDK's token file
-    │   │   └── token_store.txt # Generated by SDK
-    │   └── api_resources/  # For storing SDK resource files (Layouts, etc.)
-    │       └── resources/  # Generated by SDK
-    ├── logs/               # Log files (should be in .gitignore)
-    │   └── sdk.log         # SDK log output configured in initialize.py
-    └── venv/               # Python virtual environment (should be in .gitignore)
+    │   │   └── leads/   # Leads module logic
+    │   │       ├── __init__.py
+    │   │       ├── common.py
+    │   │       ├── qualify.py
+    │   │       └── update.py
+    │   └── tests/
+    │       ├── __init__.py
+    │       └── test_init.py # Example test
+    └── venv/            # Virtual environment (add to .gitignore)
     ```
 
-6.  **Create and Activate Virtual Environment:**
-    *   Open your terminal in the project root directory (`d:\zoho_v8`).
-    *   Create the virtual environment:
-        ```bash
-        python -m venv venv
-        ```
-    *   Activate the environment:
-        *   **Windows PowerShell:** `.\venv\Scripts\Activate.ps1`
-        *   **Windows Command Prompt:** `.\venv\Scripts\activate.bat`
-        *   **macOS/Linux (Bash/Zsh):** `source venv/bin/activate`
-    *   Your terminal prompt should now indicate the active environment (e.g., `(venv) d:\zoho_v8>`).
+6.  **Create and Activate Virtual Environment:** (Instructions remain the same as Rev. 4)
 
-7.  **Install Required Libraries:**
-    *   Ensure pip is up-to-date:
-        ```bash
-        (venv) python -m pip install --upgrade pip
-        ```
-    *   Install the Zoho CRM SDK and `python-dotenv`:
-        ```bash
-        (venv) pip install zohocrmsdk python-dotenv
-        ```
-        *(Note: This installs the latest `zohocrmsdk` package compatible with API v8).*
+7.  **Install Required Libraries:** (Instructions remain the same as Rev. 4: `pip install zohocrmsdk python-dotenv`)
 
 ---
 
 ### Phase 3: SDK Initialization Code (`src/core/initialize.py`)
 
 8.  **Understand `src/core/initialize.py`:**
-    *   This script is responsible for initializing the Zoho CRM SDK singleton.
-    *   It's designed to run **automatically** when any module imports from `src.core`.
-    *   It reads credentials (`CLIENT_ID`, `CLIENT_SECRET`, `REFRESH_TOKEN`, `ACCOUNTS_URL`) from the `.env` file.
-    *   It **dynamically determines the correct DataCenter** (e.g., US, EU, AU) based on the `ACCOUNTS_URL`.
-    *   It configures `FileStore` to save access/refresh tokens in `data/tokens/token_store.txt`, enabling automatic token refresh.
-    *   It sets the SDK's resource path to `data/api_resources` where the SDK stores downloaded metadata (like layouts).
-    *   It configures logging to write SDK activities to `logs/sdk.log`.
-    *   Crucially, it uses the **OAuthToken with the Refresh Token** flow for authentication.
+    *   This script is responsible for initializing the Zoho CRM SDK singleton **and** setting up application-level logging.
+    *   It runs **automatically** when first imported (typically by `src/cli.py`).
+    *   Reads credentials (`CLIENT_ID`, `CLIENT_SECRET`, `REFRESH_TOKEN`, `ACCOUNTS_URL`) from the `.env` file.
+    *   Dynamically determines the correct `DataCenter` based on `ACCOUNTS_URL`.
+    *   Configures `FileStore` for token persistence in `zoho_data/tokens/token_store.txt`.
+    *   Sets the SDK's resource path to `zoho_data/api_resources`.
+    *   Configures standard Python `logging` to output application messages to console and `logs/app.log`. **Exports the `logger` instance.**
+    *   Configures the separate SDK internal logger (`SDKLogger`) to write to `logs/sdk.log`.
+    *   Calls `Initializer.initialize` **explicitly** with all required parameters.
+    *   Includes error handling and raises `RuntimeError` if initialization fails.
 
     **Conceptual Excerpt (`src/core/initialize.py`):**
     ```python
-    # src/core/initialize.py (Illustrative Snippet - See full file in project)
-    import os, pathlib
+    # src/core/initialize.py (Illustrative Snippet)
+    import logging
+    import os, pathlib, sys
     from dotenv import load_dotenv
-    from zohocrmsdk.src.com.zoho.crm.api.initializer import Initializer
-    from zohocrmsdk.src.com.zoho.crm.api.sdk_config import SDKConfig
-    from zohocrmsdk.src.com.zoho.crm.api.dc import USDataCenter, EUDataCenter, #... other DCs
-    from zohocrmsdk.src.com.zoho.api.authenticator import OAuthToken
-    from zohocrmsdk.src.com.zoho.api.authenticator.store import FileStore
-    from zohocrmsdk.src.com.zoho.api.logger import Logger
+    # ... SDK imports ...
+    from zohocrmsdk.src.com.zoho.api.logger import Logger as SDKLogger
 
-    # --- Setup Paths Relative to Project Root ---
-    PROJECT_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
-    # ... (Define DATA_DIR, LOGS_DIR, TOKEN_DIR, API_RESOURCES_DIR) ...
-    # ... (Ensure directories exist using os.makedirs or pathlib.mkdir) ...
-    token_file = TOKEN_DIR / "token_store.txt"
-    log_file = LOGS_DIR / "sdk.log"
-    api_resources_path = API_RESOURCES_DIR
+    # --- Project Structure & Paths ---
+    # ... Define PROJECT_ROOT, DATA_DIR, LOGS_DIR, TOKEN_DIR, API_RESOURCES_DIR ...
+    # ... Define token_file, app_log_file, sdk_log_file ...
+    # ... Create directories ...
 
-    # --- DC Mapping and Picker Function ---
-    _DC_MAP = { # Map TLD to SDK DataCenter object
-        "com": USDataCenter.PRODUCTION(),
-        "eu": EUDataCenter.PRODUCTION(),
-        # ... other TLDs
-    }
-    def _pick_dc(accounts_url: str): # Function to select DC based on URL
-        tld = accounts_url.split("accounts.")[-1]
-        return _DC_MAP.get(tld, USDataCenter.PRODUCTION()) # Default to US
+    # --- Application Logging Setup ---
+    log_formatter = logging.Formatter(...)
+    file_handler = logging.FileHandler(str(app_log_file))
+    # ... configure file handler ...
+    console_handler = logging.StreamHandler(sys.stdout)
+    # ... configure console handler ...
+    logger = logging.getLogger('zoho_app') # Exported application logger
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+    logger.propagate = False
+    logger.info("Application logging configured.")
 
-    # --- Load .env and Initialize ---
-    load_dotenv(PROJECT_ROOT / '.env') # Load from project root .env
+    # --- Zoho SDK Config ---
+    # ... _DC_MAP and _pick_dc function ...
+    # ... load_dotenv() ...
 
-    if not Initializer.get_initializer(): # Initialize only once
-        environment = _pick_dc(os.getenv("ACCOUNTS_URL", "https://accounts.zoho.com"))
-        token = OAuthToken(
-            client_id=os.getenv("CLIENT_ID"),
-            client_secret=os.getenv("CLIENT_SECRET"),
-            refresh_token=os.getenv("REFRESH_TOKEN"),
-            redirect_url="http://localhost" # Dummy required by SDK, not used in self-client
-        )
-        store = FileStore(file_path=str(token_file))
-        config = SDKConfig(auto_refresh_fields=True, pick_list_validation=False) # Config options
-        logger = Logger.get_instance(level=Logger.Levels.INFO, file_path=str(log_file))
-
+    # --- SDK Initialization ---
+    if not Initializer.get_initializer():
+        logger.info("Attempting Zoho CRM SDK Initialization...")
         try:
-            Initializer.initialize(
+            environment = _pick_dc(...)
+            token = OAuthToken(...)
+            store = FileStore(...)
+            sdk_config = SDKConfig(...)
+            resource_path = str(API_RESOURCES_DIR)
+            sdk_internal_logger = SDKLogger.get_instance(...)
+            request_proxy = None
+
+            Initializer.initialize( # Explicit call
                 environment=environment,
                 token=token,
                 store=store,
-                sdk_config=config,
-                resource_path=str(api_resources_path), # Directory for SDK resources
-                logger=logger
+                sdk_config=sdk_config,
+                resource_path=resource_path,
+                logger=sdk_internal_logger,
+                proxy=request_proxy
             )
-            print("✅ SDK Initialized Successfully!") # Add console feedback
-        except Exception as e:
-            print(f"❌ SDK Initialization Failed: {e}") # Log error
-            # Optionally raise the exception or handle it
-            # logger.error("SDK Initialization failed", exc_info=True) # Log detailed error
-            raise # Re-raise to halt execution if init fails
+            logger.info("Zoho CRM SDK Initialization successful.")
+        except ValueError as e: # Credential error
+             logger.critical(f"SDK Initialization Failed: {e}")
+             raise RuntimeError(f"Fatal: Zoho SDK Initialization Failed. {e}")
+        except Exception as e: # Other errors
+            logger.critical(f"SDK Initialization Failed (Unexpected Error): {e}", exc_info=True)
+            raise RuntimeError(f"Fatal: Zoho SDK Initialization Failed. Check logs. Error: {e}")
+    else:
+         logger.info("Zoho CRM SDK already initialized.")
     ```
 
 ---
 
-### Phase 4: Example Operation Code (`src/api/leads.py`)
+### Phase 4: Example Operation Code (`src/api/leads/`)
 
-9.  **Understand `src/api/leads.py`:**
-    *   This script provides an example of updating a Lead record, specifically the 'Mobile' field.
-    *   It **imports from `src.core.initialize`** (or implicitly via `src.core`) which triggers the SDK initialization logic if it hasn't run yet.
-    *   It reads the target `LEAD_ID` and `NEW_MOBILE` value from the `.env` file.
-    *   It demonstrates the **mandatory field workaround**:
-        1.  **Fetch:** It first calls `get_record` to retrieve essential fields (`Last_Name`, `Company`, `Lead_Status` - defined in `_REQ_FIELDS`) for the specific lead. This is crucial because the API might reject updates if mandatory fields (defined by layout rules or system requirements) are missing from the update payload, even if you aren't changing them.
-        2.  **Build Payload:** It creates a `Record` object for the update. It adds the *fetched values* for the required fields back into the payload using `add_key_value`.
-        3.  **Add Change:** It adds the actual field to be updated (`Mobile`) with its new value using `add_key_value`.
-        4.  **Set Trigger:** It includes the `trigger` list (`["workflow", "blueprint"]`) in the `BodyWrapper`, which is often necessary to ensure automation rules run correctly after the update.
-    *   It calls `update_record` to perform the update.
-    *   It includes basic response handling to check for success or API exceptions.
+9.  **Understand the Structure:**
+    *   **`common.py`:** Defines shared constants like `MODULE="Leads"`, field lists (`UPDATE_REQ_FIELDS`, `QUALIFY_FIELDS`), loads `.env` variables for defaults (e.g., `QUALIFICATION_CUSTOM_VIEW_ID`), and may contain helper functions like `extract_field_value`. Imports the application `logger` from `core.initialize`.
+    *   **`update.py`:** Contains the `update_single_lead_mobile` function.
+        *   Imports `MODULE`, `UPDATE_REQ_FIELDS`, and `logger` from `.common`.
+        *   Initializes `RecordOperations(MODULE)`.
+        *   Performs the `get_record` call to fetch required fields.
+        *   Builds the update payload using `Record()` and `add_field_value(Field.Leads.field_name(), value)`.
+        *   Calls `update_record`.
+        *   Handles `APIException` and other errors, returns `True`/`False`.
+    *   **`qualify.py`:** Contains the `qualify_leads_from_custom_view` function.
+        *   Imports `MODULE`, `QUALIFY_FIELDS`, `extract_field_value`, `QUALIFICATION_CUSTOM_VIEW_ID`, and `logger` from `.common`.
+        *   Initializes `RecordOperations(MODULE)`.
+        *   Uses a `while` loop for pagination.
+        *   **Creates a new `ParameterMap` inside the loop** for each page request (important fix).
+        *   Calls `get_records` with `cvid`, `fields`, `per_page`, `page`.
+        *   Processes the `ResponseWrapper` and extracts data using `extract_field_value`.
+        *   Writes results to `output/` directory.
+        *   Handles `APIException` and other errors.
 
-    **Conceptual Excerpt (`src/api/leads.py`):**
-    ```python
-    # src/api/leads.py (Illustrative Snippet - See full file in project)
-    import os, traceback
-    from dotenv import load_dotenv
-    # --- SDK Imports ---
-    from zohocrmsdk.src.com.zoho.crm.api.record import (
-        RecordOperations, BodyWrapper, Record, APIException,
-        SuccessResponse, ActionWrapper, GetRecordParam
-    )
-    from zohocrmsdk.src.com.zoho.crm.api import ParameterMap, HeaderMap
-
-    # --- Trigger Initialization ---
-    # This import ensures the code in src/core/initialize.py runs
-    from src.core import initialize
-
-    # --- Configuration ---
-    MODULE = "Leads"
-    # Fields potentially required by layout/system for updates
-    _REQ_FIELDS = ["Last_Name", "Company", "Lead_Status"]
-
-    # --- Load Data from .env ---
-    load_dotenv() # Load variables if not already loaded
-    try:
-        lead_id = int(os.environ["LEAD_ID"]) # Get target Lead ID from .env
-        new_mobile = os.environ["NEW_MOBILE"] # Get new mobile value from .env
-    except KeyError as e:
-        print(f"Error: Environment variable {e} not found in .env")
-        exit(1)
-    except ValueError:
-        print(f"Error: Invalid LEAD_ID '{os.environ.get('LEAD_ID')}' in .env. Must be an integer.")
-        exit(1)
-
-    # --- Main Update Logic ---
-    def update_lead_mobile(target_lead_id: int, mobile_number: str):
-        print(f"Attempting to update Lead ID: {target_lead_id} with Mobile: {mobile_number}")
-        ops = RecordOperations(MODULE) # Use default user from init
-
-        try:
-            # ---- 1 · Fetch potentially required fields ----
-            print(f"Fetching required fields ({', '.join(_REQ_FIELDS)}) for Lead ID: {target_lead_id}...")
-            params = ParameterMap()
-            params.add(GetRecordParam.fields, ",".join(_REQ_FIELDS))
-            response = ops.get_record(target_lead_id, params, HeaderMap())
-            # Simplified success check - add proper status/error handling
-            if response.get_status_code() != 200:
-                 print(f"Error fetching record: Status {response.get_status_code()}")
-                 # Handle error appropriately, maybe print response object
-                 return
-
-            record_data = response.get_object().get_data()[0]
-            print("Required fields fetched successfully.")
-
-            # ---- 2 · Build update payload ----
-            print("Building update payload...")
-            patch_record = Record()
-            # Add back fetched required fields
-            for field_name in _REQ_FIELDS:
-                value = record_data.get_key_value(field_name)
-                patch_record.add_key_value(field_name, value)
-                print(f"  Adding fetched: {field_name} = {value}")
-
-            # Add the field to be updated
-            patch_record.add_key_value("Mobile", mobile_number)
-            print(f"  Adding update: Mobile = {mobile_number}")
-
-            request_body = BodyWrapper()
-            request_body.set_data([patch_record])
-            request_body.set_trigger(["workflow", "blueprint"]) # Important for automations
-            print(f"BodyWrapper prepared with trigger: {request_body.get_trigger()}")
-
-            # ---- 3 · Push the update ----
-            print(f"Calling update_record for Lead ID {target_lead_id}...")
-            update_response = ops.update_record(target_lead_id, request_body)
-            action_handler = update_response.get_object()
-
-            print("Handling update response...")
-            # (Simplified Response Handling - Check Full Code)
-            if isinstance(action_handler, ActionWrapper):
-                action_result = action_handler.get_data()[0]
-                if isinstance(action_result, SuccessResponse):
-                    print(f"✅ Successfully updated Lead {target_lead_id}.")
-                    print(f"   Status: {action_result.get_status().get_value()}, Code: {action_result.get_code().get_value()}, Message: {action_result.get_message().get_value()}")
-                    print(f"   Details: {action_result.get_details()}")
-                elif isinstance(action_result, APIException):
-                    print(f"❌ API Exception during update for Lead {target_lead_id}:")
-                    # Print detailed error information
-                    print(f"   Status: {action_result.get_status().get_value()}, Code: {action_result.get_code().get_value()}")
-                    print(f"   Message: {action_result.get_message().get_value()}")
-                    print(f"   Details: {action_result.get_details()}")
-            elif isinstance(action_handler, APIException):
-                 print(f"❌ Top-level API Exception during update:")
-                 # Print detailed error information
-                 print(f"   Status: {action_handler.get_status().get_value()}, Code: {action_handler.get_code().get_value()}")
-                 print(f"   Message: {action_handler.get_message().get_value()}")
-                 print(f"   Details: {action_handler.get_details()}")
-            else:
-                 print(f"⚠️ Unexpected response type: {type(action_handler)}")
-
-        except APIException as api_ex:
-            print(f"✖ APIException occurred: {api_ex}")
-            traceback.print_exc()
-        except Exception as e:
-            print(f"✖ An unexpected error occurred: {e}")
-            traceback.print_exc()
-
-    # --- Run the update when script is executed directly ---
-    if __name__ == "__main__":
-        # Initialization check happens implicitly via import,
-        # but explicit check might be useful depending on error handling in initialize.py
-        if initialize.Initializer.get_initializer():
-             print("--- Starting Lead Update Process ---")
-             update_lead_mobile(lead_id, new_mobile)
-             print("--- Lead Update Process Finished ---")
-        else:
-             print("Critical Error: SDK not initialized. Cannot proceed. Check logs/sdk.log")
-
-    ```
+    **(Note: Conceptual excerpts are omitted here as the structure is explained. Refer to the actual project files for full code.)**
 
 ---
 
-### Phase 5: Running the Code
+### Phase 5: Running the Code via CLI
 
 10. **Activate Environment:** Ensure your virtual environment is active (`(venv)` should be in your prompt).
 
-11. **Navigate to Root:** Make sure your terminal's current directory is the project root (e.g., `d:\zoho_v8`).
+11. **Navigate to Root:** Make sure your terminal's current directory is the project root (e.g., `D:\zoho_v8`).
 
-12. **Run the Update Script:**
-    *   Execute the `leads.py` module using the `python -m` flag, which ensures correct relative imports within the `src` package:
+12. **Run Commands via `src/cli.py`:**
+    *   **Help:**
         ```bash
-        (venv) python -m src.api.leads
+        python src/cli.py -h
+        python src/cli.py qualify -h
+        python src/cli.py update -h
         ```
-    *   Observe the console output for fetch, build, and update steps.
-    *   Check for `✅ Successfully updated Lead...` message.
-    *   Verify the mobile number change in your Zoho CRM instance for the specified `LEAD_ID`.
-    *   Check `logs/sdk.log` for detailed SDK activity or errors.
+    *   **Qualify Leads (using CV from `.env`):**
+        ```bash
+        python src/cli.py qualify
+        ```
+    *   **Qualify Leads (specifying CV):**
+        ```bash
+        python src/cli.py qualify --cvid YOUR_OTHER_CV_ID
+        ```
+    *   **Update Lead (using ID/Mobile from `.env`):**
+        ```bash
+        python src/cli.py update
+        ```
+    *   **Update Lead (specifying ID/Mobile):**
+        ```bash
+        python src/cli.py update --id 1649349000440877054 --mobile +15559876543
+        ```
+    *   Observe console output for progress and success/error messages.
+    *   Check `output/lead_qualification_results.txt` after running `qualify`.
+    *   Verify changes in Zoho CRM after running `update`.
+    *   Check `logs/app.log` for application flow and errors.
+    *   Check `logs/sdk.log` for detailed SDK API call information (if needed).
 
 13. **Run Initialization Test (Optional):**
-    *   To verify the initialization setup independently:
-        ```bash
-        (venv) python -m src.tests.test_init
-        ```
+    ```bash
+    python -m src.tests.test_init
+    ```
 
 ---
 
 ### Phase 6: Troubleshooting / Key Points Recap
 
-*   **SDK Package:** Use `zohocrmsdk`.
-*   **Authentication:** The **Refresh Token** obtained via the one-time manual **Grant Token exchange** is mandatory for initialization in this setup.
-*   **Initialization (`src/core/initialize.py`):**
-    *   Runs automatically on import.
-    *   Uses `OAuthToken` with `client_id`, `client_secret`, `refresh_token`.
-    *   Uses `FileStore` (e.g., `data/tokens/token_store.txt`) for automatic access token management.
-    *   Sets `resource_path` (e.g., `data/api_resources`) for SDK metadata.
-    *   Configures `logger` (e.g., `logs/sdk.log`).
-    *   Determines `environment` (Data Center) automatically from `ACCOUNTS_URL` in `.env`.
-*   **.env File:** Must be in the project root and contain correct `CLIENT_ID`, `CLIENT_SECRET`, `REFRESH_TOKEN`, `ACCOUNTS_URL`, and `USER_EMAIL`. Add operation-specific variables like `LEAD_ID`, `NEW_MOBILE` as needed.
-*   **Scopes:** Ensure the initial Grant Token was generated with sufficient scopes (`ZohoCRM.modules.ALL`, etc.). `INVALID_TOKEN` or `OAUTH_SCOPE_MISMATCH` often points to missing scopes. Regenerate Grant/Refresh tokens if necessary.
-*   **Mandatory Fields Workaround (`MANDATORY_NOT_FOUND`):** Crucial for updates. Always fetch potentially required fields (`Last_Name`, `Company`, system-mandatory fields, fields involved in layout rules) using `get_record` with the `fields` parameter, and include their current values in the `update_record` payload using `add_key_value`.
-*   **Data Types:** Using `add_key_value` simplifies adding both fetched values (which might be complex objects like `Choice`) and new simple values (like strings) to the update payload.
-*   **Trigger List:** Include `trigger = ["approval", "workflow", "blueprint"]` (or relevant subset) in the `BodyWrapper` for creates/updates to ensure Zoho automations run.
-*   **Running Scripts:** Always run your application modules from the **project root directory** using `python -m src.package.module` to ensure Python handles imports correctly.
-*   **Path Issues:** Check that the `data/` and `logs/` directories exist or that the `initialize.py` script successfully creates them. Ensure the application has write permissions to these directories.
-*   **`USER_EMAIL`:** Must correspond to an active, confirmed user in the specific Zoho CRM instance being accessed. The SDK uses this implicitly or explicitly (`UserSignature`) to associate API actions with a user.
-*   **Check Logs:** `logs/sdk.log` is your primary source for detailed SDK errors if console output is insufficient.
+*   **Entry Point:** Use `python src/cli.py ...`.
+*   **Virtual Environment:** Ensure it's active.
+*   **Project Root:** Run commands from the project's top-level directory.
+*   **Initialization:** Handled automatically by `src/core/initialize.py` on first import in `cli.py`. Check `logs/app.log` for init success/failure.
+*   **Authentication:** Uses Refresh Token + `FileStore`. Ensure `.env` is correct. Check `logs/sdk.log` for token refresh activity.
+*   **Logging:** App logic logs to console and `logs/app.log`. SDK internals log to `logs/sdk.log`.
+*   **Dependencies:** Ensure `zohocrmsdk` and `python-dotenv` are installed in the venv.
+*   **`Field` Class:** Updates use `Field.Leads.field_name()`. Ensure correct field names are used.
+*   **Mandatory Fields:** `update.py` fetches `UPDATE_REQ_FIELDS` first. Add more fields to this list in `common.py` if `MANDATORY_NOT_FOUND` errors occur for specific layouts/rules.
+*   **Custom Views:** Qualification uses `cvid`. Ensure the ID in `.env` or `--cvid` is correct and accessible. Ensure fields in `QUALIFY_FIELDS` exist.
+*   **Pagination:** `qualify.py` creates a new `ParameterMap` per page request.
+*   **Check Logs:** `logs/app.log` first for application errors, then `logs/sdk.log` for deeper API issues.
 
 ---
 
-## Phase 7: Fetching and Filtering Multiple Records (Lead Qualification Example)
+### Phase 7: Fetching Records via Custom View (Lead Qualification Example)
 
-This phase demonstrates how to retrieve multiple records from a module, handle pagination, and perform client-side filtering using the `src/api/leads.py` script.
+This phase is implemented by the `src/api/leads/qualify.py` script, executed via `python src/cli.py qualify`.
 
-**Objective:** Fetch all "Leads" records where the `Lead_Status` field is exactly "Not Contacted" and display specific fields (`id`, `First_Name`, `Last_Name`, `Email`, `Additional_Relocation_Notes`) for review.
+**Objective:** Fetch leads belonging to a specific Custom View (defined by `QUALIFICATION_CUSTOM_VIEW_ID` in `.env` or `--cvid` argument) and extract specified fields (`QUALIFY_FIELDS` in `common.py`) into an output file.
 
-**Key Concepts Implemented in `qualify_uncontacted_leads()`:**
+**Key Concepts Implemented in `qualify_leads_from_custom_view()`:**
 
-1.  **`RecordOperations.get_records()`:** This method is used to retrieve multiple records from the specified module (`Leads`).
-2.  **`ParameterMap` & `GetRecordsParam`:**
-    *   A `ParameterMap` instance holds the query parameters for the `get_records` call.
-    *   `GetRecordsParam.fields`: Used to specify a comma-separated string of API names for the fields to retrieve (e.g., `"First_Name,Last_Name,Email,Lead_Status,Additional_Relocation_Notes"`). This minimizes data transfer.
-    *   `GetRecordsParam.per_page`: Sets the maximum number of records to retrieve per API call (e.g., `200`).
-    *   `GetRecordsParam.page`: Specifies which page number to retrieve (starts at 1). This is updated inside the pagination loop.
-3.  **Pagination Loop:**
-    *   A `while more_records:` loop continues as long as the API indicates more data might be available.
-    *   Inside the loop, `get_records` is called for the current `page`.
-    *   The response (`response.get_object()`) is checked. It should contain a `BodyWrapper` object on success (HTTP 200).
-    *   The `BodyWrapper` contains `get_data()` (a list of `Record` objects) and `get_info()` (an `Info` object).
-    *   The `info.get_more_records()` method returns `True` if the API indicates more pages are available, controlling the loop's continuation.
-    *   The `page` counter is incremented for the next iteration if `more_records` is `True`.
-    *   The loop also handles HTTP 204 (No Content), which signals the end of records.
-4.  **Client-Side Filtering:**
-    *   After fetching a page of records, the code iterates through each `record` in the `records` list.
-    *   It retrieves the value of the `Lead_Status` field using `record.get_key_value("Lead_Status")`.
-    *   An `if status == target_status:` check filters the records based on the desired status ("Not Contacted").
-    *   Only records matching the criteria are processed further and added to the `all_qualifying_leads` list.
-5.  **Data Extraction:** For qualifying records, relevant fields (`id`, names, email, notes) are extracted using `record.get_key_value()` or `record.get_id()`.
-6.  **Error Handling:** `try...except` blocks handle `APIException` and general `Exception` possibilities during API calls and data processing, logging errors appropriately.
-7.  **Logging:** Uses the configured `logger` for detailed info, debug, warning, and error messages, which are written to `logs/sdk.log`.
+1.  **`RecordOperations.get_records()`:** Used with `ParameterMap`.
+2.  **Parameters:** `GetRecordsParam.cvid`, `GetRecordsParam.fields`, `GetRecordsParam.per_page`, `GetRecordsParam.page`.
+3.  **Pagination Loop:** A `while more_records:` loop continues as long as the API indicates more data might be available (`info.get_more_records()`). **Crucially, a new `ParameterMap` is created *inside* the loop for each page request to avoid parameter re-use issues.**
+4.  **Data Extraction:** Iterates through the `ResponseWrapper.get_data()` list. Uses the `extract_field_value` helper function (from `common.py`) to get values, handling potential `Choice` objects.
+5.  **Output:** Writes the extracted data for each lead to `output/lead_qualification_results.txt` (or the filename specified by `--output`).
+6.  **Error Handling:** Includes `try...except APIException` and `except Exception` blocks to catch and log errors during API calls and data processing.
 
-**Running the Example:**
-
-Execute `python -m src.api.leads` from the project root. The script will print progress and the final list of qualifying leads to the console.
-
-**Note on Filtering Efficiency:** While client-side filtering works well for moderate amounts of data, it involves fetching all records (within the pagination limits) and then discarding those that don't match in your Python code. For very large datasets where you only need a small subset, this can be inefficient in terms of API calls and data transfer.
-
-A more efficient approach for large-scale filtering is **server-side filtering** using **COQL (CRM Object Query Language)**. The SDK provides `ZohoCRMSDK.Operations.execute_coql_query()` method for this purpose. Constructing a COQL query like `SELECT id, First_Name, Last_Name, Email, Additional_Relocation_Notes FROM Leads WHERE Lead_Status = 'Not Contacted'` would instruct the Zoho CRM server to *only* return the records that match the `WHERE` clause, significantly reducing the data transferred and potentially the number of API calls needed.
+**(Note on Efficiency):** Fetching via `cvid` is convenient but might be less efficient or have different pagination behavior than using COQL for complex, server-side filtering, especially on very large data sets. Consider COQL (`execute_coql_query`) for more advanced filtering needs.
 
 ---
